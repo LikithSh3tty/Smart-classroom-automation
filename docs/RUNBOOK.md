@@ -80,9 +80,13 @@ If you skip this part the project still runs. The serial monitor prints `ThingSp
    Smart Classroom Automation booting
    WiFi: joining Wokwi-GUEST
    ....
-   WiFi: connected, IP 10.10.0.2
-   T=24.0C H=55% L=100% motion=0 occupied=1 lights=0 fan=0 alarm=0
+   WiFi: connected, IP 10.13.37.2
+   T=24.0C H=55% L=76% (adc 1001) motion=0 occupied=1 lights=0 fan=0 alarm=0
    ```
+
+   The `adc` field is the raw photoresistor reading. It is logged so the light
+   mapping can be recalibrated without guesswork, see the note at the end of
+   demo step 2.
 
    `occupied=1` at the very start is expected. The vacancy timer starts at boot, so the room reads occupied for the first 10 seconds and then falls to `occupied=0`.
 
@@ -98,7 +102,7 @@ Each step is a visible change on the canvas, the OLED and the ThingSpeak charts.
 
 Let it settle for about 20 seconds without touching anything.
 
-Expected: OLED reads `Temp 24.0 C`, `Hum 55 %`, `Light 100 %`, `Room EMPTY`, `LGT:OFF FAN:OFF`. Both LEDs dark, buzzer silent. Serial shows `occupied=0`. The header corner shows `TS` after the first accepted upload.
+Expected: OLED reads `Temp 24.0 C`, `Hum 55 %`, `Light 76 %`, `Room EMPTY`, `LGT:OFF FAN:OFF`. The photoresistor starts at 500 lux, which maps to 76 %. Both LEDs dark, buzzer silent. Serial shows `occupied=0`. The header corner shows `TS` after the first accepted upload.
 
 Open your ThingSpeak channel's **Private View** in a second browser tab. The first data point appears within 15 seconds. Charts refresh on page reload, or use the refresh icon on each chart.
 
@@ -116,7 +120,7 @@ Keep clicking the PIR every few seconds during the next steps to hold the room o
 
 ### Step 2: change light level
 
-Click the **photoresistor** part. A light slider appears next to it. Drag it toward the dark end while keeping motion alive with PIR clicks.
+Click the **photoresistor** part. A slider labelled `ILLUMINATION (LUX)` appears above it, starting at 500 lux. Drag it toward the dark end while keeping motion alive with PIR clicks.
 
 Expected:
 - the `Light %` line on the OLED falls
@@ -126,7 +130,7 @@ Expected:
 
 Now stop clicking the PIR and wait 10 seconds with the room still dark. The lights turn off because the room is empty. That pairing is the point of using the LDR and the PIR together.
 
-If the `Light %` reading does not span roughly 0 to 100 as you drag, adjust `LDR_RAW_DARK` and `LDR_RAW_BRIGHT` in `config.h` to the raw ADC values you actually see, then restart the simulation.
+If the `Light %` reading does not span roughly 0 to 100 as you drag, recalibrate: park the slider at each end, note the `adc` value printed in serial, and put those two numbers into `LDR_RAW_DARK` and `LDR_RAW_BRIGHT` in `config.h`. The module's output falls as light rises, so `LDR_RAW_DARK` is the larger number. Measured values on the Wokwi part are 4063 at 0 lux and 32 at maximum.
 
 ### Step 3: increase temperature
 

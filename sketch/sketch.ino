@@ -177,9 +177,11 @@ void readEnvironment() {
     Serial.println(F("DHT22 read failed, keeping last good values"));
   }
 
+  // The module's analog output falls as the room brightens, so the darker
+  // reference is subtracted from the sample rather than the other way round.
   ldrRaw = analogRead(PIN_LDR);
-  lightPct = 100.0f * (float)(ldrRaw - LDR_RAW_DARK) /
-             (float)(LDR_RAW_BRIGHT - LDR_RAW_DARK);
+  lightPct = 100.0f * (float)(LDR_RAW_DARK - ldrRaw) /
+             (float)(LDR_RAW_DARK - LDR_RAW_BRIGHT);
   lightPct = constrain(lightPct, 0.0f, 100.0f);
 }
 

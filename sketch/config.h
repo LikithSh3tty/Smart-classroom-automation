@@ -36,7 +36,9 @@
 #define BEEP_PERIOD_MS       600UL   // alarm on/off half cycle
 
 // ------------------------------------------------------- ADC calibration
-// Raw ADC counts that map to 0 % and 100 % ambient light. The Wokwi
-// photoresistor module outputs a higher voltage in brighter light.
-#define LDR_RAW_DARK        200
-#define LDR_RAW_BRIGHT     3600
+// Raw ADC counts measured at each end of the Wokwi illumination slider.
+// The module divides the LDR against a fixed resistor such that the analog
+// output RISES as the room gets darker, so the dark value is the larger one.
+// Measured on the Wokwi photoresistor module: 0 lux -> 4063, max lux -> 32.
+#define LDR_RAW_DARK       4063
+#define LDR_RAW_BRIGHT       32
