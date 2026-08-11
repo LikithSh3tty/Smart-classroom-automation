@@ -18,5 +18,5 @@
 // disable remote control entirely.
 // Accepted commands: FAN_ON, FAN_OFF, FAN_AUTO,
 //                    LIGHTS_ON, LIGHTS_OFF, LIGHTS_AUTO, ALL_AUTO
-#define TB_ID          0UL
-#define TB_API_KEY     "YOUR_TALKBACK_API_KEY"
+#define TB_ID          57533UL
+#define TB_API_KEY     "2C9KOORGJRR6AYSQ"
