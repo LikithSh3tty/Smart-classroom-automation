@@ -3,18 +3,23 @@
 
   Reads temperature and humidity (DHT22), ambient light (LDR) and occupancy
   (PIR), then drives the classroom lights, the fan relay and an over
-  temperature buzzer. Current state is shown on a 128x64 SSD1306 OLED.
+  temperature buzzer. Current state is shown on a 128x64 SSD1306 OLED and
+  published to a ThingSpeak channel over WiFi.
 */
 
 #include <Wire.h>
+#include <WiFi.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
+#include <ThingSpeak.h>
 
 #include "config.h"
+#include "secrets.h"
 
 DHT dht(PIN_DHT, DHT22);
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+WiFiClient net;
 
 // latest sensor snapshot
 float tempC = NAN;
@@ -33,6 +38,10 @@ unsigned long lastSensorMs = 0;
 unsigned long lastDisplayMs = 0;
 unsigned long lastBeepMs = 0;
 unsigned long lastMotionMs = 0;
+unsigned long lastUploadMs = 0;
+unsigned long lastWifiTryMs = 0;
+
+int lastUploadStatus = 0;   // 200 once a ThingSpeak write has succeeded
 
 void setup() {
   Serial.begin(115200);
@@ -65,7 +74,32 @@ void setup() {
     display.display();
   }
 
+  connectWifi();
+  ThingSpeak.begin(net);
+
   lastMotionMs = millis();
+}
+
+// Blocks for at most 10 s so a dead network never stops the automation.
+void connectWifi() {
+  Serial.printf("WiFi: joining %s\n", WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
+
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000UL) {
+    delay(250);
+    Serial.print('.');
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(F("WiFi: connected, IP "));
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(F("WiFi: not connected, running offline"));
+  }
+  lastWifiTryMs = millis();
 }
 
 void loop() {
@@ -85,6 +119,40 @@ void loop() {
   if (now - lastDisplayMs >= DISPLAY_PERIOD_MS) {
     lastDisplayMs = now;
     drawDisplay();
+  }
+
+  if (now - lastUploadMs >= TS_PERIOD_MS) {
+    lastUploadMs = now;
+    uploadThingSpeak();
+  }
+}
+
+// ---------------------------------------------------------------- telemetry
+
+void uploadThingSpeak() {
+  if (WiFi.status() != WL_CONNECTED) {
+    if (millis() - lastWifiTryMs >= 15000UL) connectWifi();
+    return;
+  }
+  if (TS_CHANNEL_ID == 0UL) {
+    Serial.println(F("ThingSpeak: channel not configured, skipping upload"));
+    return;
+  }
+
+  ThingSpeak.setField(1, tempC);
+  ThingSpeak.setField(2, humidity);
+  ThingSpeak.setField(3, lightPct);
+  ThingSpeak.setField(4, (int)occupied);
+  ThingSpeak.setField(5, (int)lightsOn);
+  ThingSpeak.setField(6, (int)fanOn);
+  ThingSpeak.setField(7, (int)alarmOn);
+  ThingSpeak.setStatus(occupied ? "occupied" : "empty");
+
+  lastUploadStatus = ThingSpeak.writeFields(TS_CHANNEL_ID, TS_WRITE_API_KEY);
+  if (lastUploadStatus == 200) {
+    Serial.println(F("ThingSpeak: update accepted"));
+  } else {
+    Serial.printf("ThingSpeak: write failed, HTTP %d\n", lastUploadStatus);
   }
 }
 
@@ -169,6 +237,12 @@ void drawDisplay() {
   display.setTextSize(1);
   display.setCursor(0, 0);
   display.print(F("SMART CLASSROOM"));
+  display.setCursor(104, 0);
+  if (WiFi.status() != WL_CONNECTED) {
+    display.print(F("OFF"));
+  } else {
+    display.print(lastUploadStatus == 200 ? F("TS ") : F("NET"));
+  }
   display.drawFastHLine(0, 10, OLED_WIDTH, SSD1306_WHITE);
 
   display.setCursor(0, 16);
