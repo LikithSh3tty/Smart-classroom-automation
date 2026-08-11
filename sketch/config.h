@@ -4,7 +4,8 @@
 #define PIN_DHT      15   // DHT22 data
 #define PIN_LDR      34   // photoresistor analog out (ADC1_CH6, input only)
 #define PIN_PIR      13   // HC-SR501 motion out
-#define PIN_RELAY    26   // relay module IN, drives the fan
+#define PIN_RELAY    26   // relay module IN, isolation stage for the fan circuit
+#define PIN_FAN_PWM  32   // LEDC output, fan speed, routed through the relay contacts
 #define PIN_LIGHT    25   // classroom lights LED
 #define PIN_BUZZER   27   // alarm buzzer
 #define PIN_SDA      21   // OLED I2C
@@ -20,9 +21,20 @@
 #define DARK_PCT           35.0f
 #define LIGHT_HYST_PCT      8.0f   // must climb this far past DARK_PCT to turn lights off
 
-// Fan relay switches on above FAN_ON_C and off below FAN_ON_C - FAN_HYST_C.
+// Fan control is proportional, not on/off. The fan starts at FAN_ON_C and
+// reaches full speed at FAN_FULL_C, with the duty cycle interpolated between.
+// It stops only after falling below FAN_ON_C - FAN_HYST_C.
 #define FAN_ON_C           28.0f
+#define FAN_FULL_C         34.0f
 #define FAN_HYST_C          1.5f
+
+// A real fan will not start from rest at a low duty cycle, so any non zero
+// demand is lifted to at least this much.
+#define FAN_MIN_DUTY_PCT     30
+
+// LEDC settings for the speed output.
+#define FAN_PWM_FREQ      20000   // above hearing range, no audible whine
+#define FAN_PWM_BITS          8   // 0..255 duty
 
 // Buzzer sounds while temperature stays above this.
 #define ALARM_C            35.0f

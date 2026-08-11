@@ -83,7 +83,7 @@
     [ "esp:GND.1", "relay:GND", "black", [ "h-30", "v200" ] ],
     [ "esp:D26", "relay:IN", "green", [ "h-40", "v200" ] ],
 
-    [ "esp:VIN", "relay:COM", "red", [ "h-60", "v240" ] ],
+    [ "esp:D32", "relay:COM", "magenta", [ "h-60", "v240" ] ],
     [ "relay:NO", "ledFan:A", "orange", [ "v-40", "h-60" ] ],
     [ "ledFan:C", "rFan:1", "black", [ "v10", "h0" ] ],
     [ "rFan:2", "esp:GND.1", "black", [ "v20", "h200" ] ]

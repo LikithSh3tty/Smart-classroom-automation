@@ -31,7 +31,8 @@ bool occupied = false;
 
 // actuator state
 bool lightsOn = false;
-bool fanOn = false;
+bool fanOn = false;            // relay energised, the fan circuit is live
+int fanSpeedPct = 0;           // 0..100, PWM duty behind the relay contacts
 bool alarmOn = false;
 bool beepHigh = false;
 
@@ -56,6 +57,13 @@ void setup() {
   digitalWrite(PIN_LIGHT, LOW);
   digitalWrite(PIN_RELAY, LOW);
   digitalWrite(PIN_BUZZER, LOW);
+
+  // Speed output. The relay contacts sit between this pin and the fan, so the
+  // duty cycle only reaches the load once the isolation stage is closed.
+  if (!ledcAttach(PIN_FAN_PWM, FAN_PWM_FREQ, FAN_PWM_BITS)) {
+    Serial.println(F("LEDC attach failed, fan will not vary speed"));
+  }
+  ledcWrite(PIN_FAN_PWM, 0);
 
   analogReadResolution(12);          // 0..4095
   analogSetPinAttenuation(PIN_LDR, ADC_11db);   // full 0..3.3 V swing
@@ -145,7 +153,7 @@ void uploadThingSpeak() {
   ThingSpeak.setField(3, lightPct);
   ThingSpeak.setField(4, (int)occupied);
   ThingSpeak.setField(5, (int)lightsOn);
-  ThingSpeak.setField(6, (int)fanOn);
+  ThingSpeak.setField(6, fanSpeedPct);
   ThingSpeak.setField(7, (int)alarmOn);
   ThingSpeak.setStatus(occupied ? "occupied" : "empty");
 
@@ -198,7 +206,8 @@ void applyRules(unsigned long now) {
     lightsOn = false;
   }
 
-  // Fan: occupied and warm.
+  // Fan: occupied and warm. Speed rises with how far the room has overshot
+  // the setpoint instead of slamming between off and full.
   if (!occupied) {
     fanOn = false;
   } else if (!isnan(tempC)) {
@@ -208,18 +217,33 @@ void applyRules(unsigned long now) {
       fanOn = false;
     }
   }
+  fanSpeedPct = fanOn ? demandedSpeed(tempC) : 0;
 
   // Alarm: temperature emergency, regardless of occupancy.
   alarmOn = !isnan(tempC) && tempC > ALARM_C;
 
   digitalWrite(PIN_LIGHT, lightsOn ? HIGH : LOW);
   digitalWrite(PIN_RELAY, fanOn ? HIGH : LOW);
+  ledcWrite(PIN_FAN_PWM, (fanSpeedPct * 255) / 100);
 
   if (!alarmOn) {
     digitalWrite(PIN_BUZZER, LOW);
     beepHigh = false;
     lastBeepMs = now;
   }
+}
+
+// Linear ramp from FAN_ON_C to FAN_FULL_C, floored at the minimum duty the
+// motor can actually start on.
+int demandedSpeed(float t) {
+  if (isnan(t)) return FAN_MIN_DUTY_PCT;
+
+  float span = FAN_FULL_C - FAN_ON_C;
+  float pct = 100.0f * (t - FAN_ON_C) / span;
+  pct = constrain(pct, 0.0f, 100.0f);
+
+  int duty = (int)(pct + 0.5f);
+  return duty < FAN_MIN_DUTY_PCT ? FAN_MIN_DUTY_PCT : duty;
 }
 
 // ----------------------------------------------------------------- output
@@ -272,7 +296,12 @@ void drawDisplay() {
   display.print(F("LGT:"));
   display.print(lightsOn ? F("ON ") : F("OFF"));
   display.print(F(" FAN:"));
-  display.print(fanOn ? F("ON ") : F("OFF"));
+  if (fanSpeedPct > 0) {
+    display.print(fanSpeedPct);
+    display.print('%');
+  } else {
+    display.print(F("OFF"));
+  }
   if (alarmOn) display.print(F(" !"));
 
   display.display();
@@ -281,7 +310,7 @@ void drawDisplay() {
 void logSerial() {
   // \r\n keeps the line aligned in serial views that do not translate \n
   Serial.printf("T=%.1fC H=%.0f%% L=%.0f%% (adc %4d) motion=%d occupied=%d "
-                "lights=%d fan=%d alarm=%d\r\n",
+                "lights=%d fan=%d%% alarm=%d\r\n",
                 tempC, humidity, lightPct, ldrRaw, motion, occupied,
-                lightsOn, fanOn, alarmOn);
+                lightsOn, fanSpeedPct, alarmOn);
 }
