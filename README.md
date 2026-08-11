@@ -33,6 +33,7 @@ sketch/secrets.h   WiFi credentials and ThingSpeak channel
 diagram.json     Wokwi wiring
 libraries.txt    Wokwi library dependencies
 wokwi.toml       Wokwi VS Code extension config
+docs/RUNBOOK.md  full walkthrough, ThingSpeak to demo, with troubleshooting
 docs/SETUP.md    how to run it and how to wire up ThingSpeak
 docs/DEMO.md     four step demo script
 ```
@@ -51,4 +52,4 @@ docs/DEMO.md     four step demo script
 
 ## Quick start
 
-See [docs/SETUP.md](docs/SETUP.md), then follow [docs/DEMO.md](docs/DEMO.md).
+Follow [docs/RUNBOOK.md](docs/RUNBOOK.md) start to finish. [docs/SETUP.md](docs/SETUP.md) covers the local arduino-cli build, [docs/DEMO.md](docs/DEMO.md) is the short demo checklist.
