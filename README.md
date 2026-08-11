@@ -28,13 +28,27 @@ Runs fully in simulation on [Wokwi](https://wokwi.com), no physical hardware req
 
 ```
 sketch.ino       firmware
-config.h         thresholds, pins, WiFi and ThingSpeak settings
+config.h         pin map, thresholds and timing
+secrets.h        WiFi credentials and ThingSpeak channel
 diagram.json     Wokwi wiring
 libraries.txt    Wokwi library dependencies
 wokwi.toml       Wokwi VS Code extension config
-docs/            setup and demo notes
+docs/SETUP.md    how to run it and how to wire up ThingSpeak
+docs/DEMO.md     four step demo script
 ```
+
+## ThingSpeak fields
+
+| Field | Value |
+|---|---|
+| 1 | temperature C |
+| 2 | humidity % |
+| 3 | ambient light % |
+| 4 | occupied (0/1) |
+| 5 | lights (0/1) |
+| 6 | fan (0/1) |
+| 7 | alarm (0/1) |
 
 ## Quick start
 
-See [docs/SETUP.md](docs/SETUP.md).
+See [docs/SETUP.md](docs/SETUP.md), then follow [docs/DEMO.md](docs/DEMO.md).
