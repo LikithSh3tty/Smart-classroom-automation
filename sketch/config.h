@@ -77,6 +77,29 @@
 // Speed used when the fan is forced on from the cloud.
 #define FAN_FORCE_SPEED_PCT   100
 
+// Blynk virtual pins. V0 to V7 are pushed by the device, V10 upward are
+// written by the app. Datastreams must exist in the template or the values
+// arrive and are discarded.
+#define VP_TEMP          V0
+#define VP_HUMIDITY      V1
+#define VP_LIGHT         V2
+#define VP_OCCUPIED      V3
+#define VP_LIGHTS        V4
+#define VP_FAN_SPEED     V5
+#define VP_ALARM         V6
+#define VP_CONTROL_SRC   V7
+#define VP_FAN_MODE      V10   // 0 auto, 1 force on, 2 force off
+#define VP_LIGHT_MODE    V11   // 0 auto, 1 force on, 2 force off
+#define VP_SETPOINT      V12   // fan start temperature, live
+
+// Bounds for the setpoint slider, so a stray value cannot disable the fan.
+#define SETPOINT_MIN_C     24.0f
+#define SETPOINT_MAX_C     32.0f
+
+// Blynk pushes on this period. Faster than the ThingSpeak upload because
+// there is no 15 second rate limit on a live connection.
+#define BLYNK_PUSH_MS      2000UL
+
 // ------------------------------------------------------- ADC calibration
 // Raw ADC counts measured at each end of the Wokwi illumination slider.
 // The module divides the LDR against a fixed resistor such that the analog

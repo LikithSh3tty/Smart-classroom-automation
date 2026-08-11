@@ -13,6 +13,12 @@
 // ThingSpeak free tier accepts one update every 15 seconds.
 #define TS_PERIOD_MS   15000UL
 
+// Blynk template and device. Leave BLYNK_AUTH_TOKEN empty to disable Blynk
+// entirely, the rest of the firmware runs unchanged without it.
+#define BLYNK_TEMPLATE_ID   "TMPL330hrqg9Z"
+#define BLYNK_TEMPLATE_NAME "Classroom automation"
+#define BLYNK_AUTH_TOKEN    "9_JBMi-MzGUCgR_VxhCu5h1i0pBmdw4S"
+
 // ThingSpeak TalkBack queue, used to push commands down to the device.
 // Create one under Apps, TalkBack, New TalkBack. Leave the ID at 0 to
 // disable remote control entirely.

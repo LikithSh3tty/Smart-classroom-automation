@@ -7,9 +7,13 @@
   published to a ThingSpeak channel over WiFi.
 */
 
+#include "secrets.h"          // must precede BlynkSimpleEsp32.h, which reads
+#define BLYNK_PRINT Serial    // BLYNK_TEMPLATE_ID and friends at include time
+
 #include <Wire.h>
 #include <WiFi.h>
 #include <time.h>
+#include <BlynkSimpleEsp32.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
@@ -17,7 +21,6 @@
 #include <ThingSpeak.h>
 
 #include "config.h"
-#include "secrets.h"
 
 DHT dht(PIN_DHT, DHT22);
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
@@ -61,6 +64,13 @@ Override lightOverride = OV_AUTO;
 unsigned long fanOverrideMs = 0;
 unsigned long lightOverrideMs = 0;
 unsigned long lastTalkbackMs = 0;
+unsigned long lastBlynkPushMs = 0;
+
+// The fan setpoint is a live value, not a constant, because the Blynk slider
+// writes it. FAN_ON_C is only the power on default. The ramp keeps its width,
+// so moving the start temperature moves full speed with it.
+float fanOnC = FAN_ON_C;
+float fanFullC = FAN_FULL_C;
 
 void setup() {
   Serial.begin(115200);
@@ -103,6 +113,7 @@ void setup() {
   connectWifi();
   syncClock();
   ThingSpeak.begin(net);
+  connectBlynk();
 
   lastMotionMs = millis();
 }
@@ -127,6 +138,21 @@ void connectWifi() {
     Serial.println(F("WiFi: not connected, running offline"));
   }
   lastWifiTryMs = millis();
+}
+
+// Bounded connect, so a Blynk outage delays startup by 10 seconds at worst
+// instead of blocking the classroom forever. Blynk.run() reconnects later.
+void connectBlynk() {
+  if (strlen(BLYNK_AUTH_TOKEN) == 0 || WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("Blynk: disabled or offline, running without it"));
+    return;
+  }
+  Blynk.config(BLYNK_AUTH_TOKEN);
+  if (Blynk.connect(10000)) {
+    Serial.println(F("Blynk: ready"));
+  } else {
+    Serial.println(F("Blynk: no connection, will retry in the background"));
+  }
 }
 
 // Asks NTP for the wall clock. Called once after the network is up; the
@@ -177,6 +203,11 @@ void updateSchedule() {
 void loop() {
   unsigned long now = millis();
 
+  // Pumps the Blynk connection: delivers widget writes, answers heartbeats,
+  // reconnects if the link dropped. Must be called often, hence before the
+  // periodic work rather than inside it.
+  Blynk.run();
+
   readMotion(now);
 
   if (now - lastSensorMs >= SENSOR_PERIOD_MS) {
@@ -194,6 +225,11 @@ void loop() {
     drawDisplay();
   }
 
+  if (now - lastBlynkPushMs >= BLYNK_PUSH_MS) {
+    lastBlynkPushMs = now;
+    pushBlynk();
+  }
+
   if (now - lastTalkbackMs >= TALKBACK_PERIOD_MS) {
     lastTalkbackMs = now;
     pollTalkBack();
@@ -203,6 +239,55 @@ void loop() {
     lastUploadMs = now;
     uploadThingSpeak();
   }
+}
+
+// ------------------------------------------------------------------- blynk
+
+// Widget writes land here the moment the user touches the app, with no polling
+// interval in between. They set the same override slots TalkBack writes, so the
+// two remote paths cannot disagree, whichever command arrived last wins.
+
+BLYNK_WRITE(VP_FAN_MODE) {
+  int mode = param.asInt();
+  fanOverride = (Override)constrain(mode, 0, 2);
+  fanOverrideMs = millis();
+  Serial.printf("Blynk: fan mode %d\r\n", mode);
+}
+
+BLYNK_WRITE(VP_LIGHT_MODE) {
+  int mode = param.asInt();
+  lightOverride = (Override)constrain(mode, 0, 2);
+  lightOverrideMs = millis();
+  Serial.printf("Blynk: lights mode %d\r\n", mode);
+}
+
+BLYNK_WRITE(VP_SETPOINT) {
+  float requested = param.asFloat();
+  float span = fanFullC - fanOnC;          // preserve the ramp width
+  fanOnC = constrain(requested, SETPOINT_MIN_C, SETPOINT_MAX_C);
+  fanFullC = fanOnC + span;
+  Serial.printf("Blynk: fan setpoint now %.1fC, full speed at %.1fC\r\n",
+                fanOnC, fanFullC);
+}
+
+// Called on connect and on every reconnect. Pulls the widget positions down so
+// a device that rebooted does not sit in automatic while the app shows "on".
+BLYNK_CONNECTED() {
+  Serial.println(F("Blynk: connected, syncing widgets"));
+  Blynk.syncVirtual(VP_FAN_MODE, VP_LIGHT_MODE, VP_SETPOINT);
+}
+
+void pushBlynk() {
+  if (!Blynk.connected()) return;
+
+  Blynk.virtualWrite(VP_TEMP, tempC);
+  Blynk.virtualWrite(VP_HUMIDITY, humidity);
+  Blynk.virtualWrite(VP_LIGHT, lightPct);
+  Blynk.virtualWrite(VP_OCCUPIED, (int)occupied);
+  Blynk.virtualWrite(VP_LIGHTS, (int)lightsOn);
+  Blynk.virtualWrite(VP_FAN_SPEED, fanSpeedPct);
+  Blynk.virtualWrite(VP_ALARM, (int)alarmOn);
+  Blynk.virtualWrite(VP_CONTROL_SRC, (int)fanOverride * 10 + (int)lightOverride);
 }
 
 // ------------------------------------------------------------ remote control
@@ -353,9 +438,9 @@ void applyRules(unsigned long now) {
   if (!inSession || !occupied) {
     fanOn = false;
   } else if (!isnan(tempC)) {
-    if (!fanOn && tempC > FAN_ON_C) {
+    if (!fanOn && tempC > fanOnC) {
       fanOn = true;
-    } else if (fanOn && tempC < FAN_ON_C - FAN_HYST_C) {
+    } else if (fanOn && tempC < fanOnC - FAN_HYST_C) {
       fanOn = false;
     }
   }
@@ -394,8 +479,8 @@ void applyRules(unsigned long now) {
 int demandedSpeed(float t) {
   if (isnan(t)) return FAN_MIN_DUTY_PCT;
 
-  float span = FAN_FULL_C - FAN_ON_C;
-  float pct = 100.0f * (t - FAN_ON_C) / span;
+  float span = fanFullC - fanOnC;
+  float pct = 100.0f * (t - fanOnC) / span;
   pct = constrain(pct, 0.0f, 100.0f);
 
   int duty = (int)(pct + 0.5f);
