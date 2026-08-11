@@ -12,3 +12,11 @@
 
 // ThingSpeak free tier accepts one update every 15 seconds.
 #define TS_PERIOD_MS   15000UL
+
+// ThingSpeak TalkBack queue, used to push commands down to the device.
+// Create one under Apps, TalkBack, New TalkBack. Leave the ID at 0 to
+// disable remote control entirely.
+// Accepted commands: FAN_ON, FAN_OFF, FAN_AUTO,
+//                    LIGHTS_ON, LIGHTS_OFF, LIGHTS_AUTO, ALL_AUTO
+#define TB_ID          0UL
+#define TB_API_KEY     "YOUR_TALKBACK_API_KEY"

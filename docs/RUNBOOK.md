@@ -137,10 +137,14 @@ If the `Light %` reading does not span roughly 0 to 100 as you drag, recalibrate
 Click the **DHT22** part. Temperature and humidity sliders appear. Drag temperature above 28 C while keeping motion alive.
 
 Expected:
-- the relay module clicks and its onboard LED lights
-- the blue **FAN** LED turns on, OLED shows `FAN:ON`
-- drop the temperature back down: the fan stays on until 26.5 C, which is `FAN_ON_C` minus `FAN_HYST_C`
-- ThingSpeak fields 1 and 6 follow
+- the relay module clicks and its onboard LED lights, closing the isolation stage
+- the blue **FAN** LED lights, dimly at first
+- OLED shows a percentage, `FAN:30%`, not a plain ON
+- keep raising temperature: the LED brightens and the percentage climbs, reaching `FAN:100%` at 34 C
+- drop the temperature back down: the fan keeps running until 26.5 C, which is `FAN_ON_C` minus `FAN_HYST_C`
+- ThingSpeak fields 1 and 6 follow, field 6 as a ramp rather than a square wave
+
+This is the proportional control step. Speed is interpolated between `FAN_ON_C` and `FAN_FULL_C`, with a floor of `FAN_MIN_DUTY_PCT` because a real motor will not start from rest at a low duty cycle. The PWM runs through the relay contacts, so the relay remains a true isolation stage and the duty cycle only reaches the load once it closes.
 
 Readings only refresh every 2 seconds because the DHT22 cannot be polled faster, so allow a moment after each slider move.
 
@@ -155,6 +159,37 @@ Expected:
 - ThingSpeak field 7 steps to 1
 
 The alarm ignores occupancy on purpose, an overheating empty room still needs to raise a flag. Cool the room below 35 C and the buzzer stops.
+
+### Step 5: the timetable
+
+The OLED header shows the wall clock and either `CLASS` or `CLOSED`, and every serial line is prefixed the same way. Both come from NTP over the simulated network.
+
+If you run the demo inside teaching hours, everything behaves as in steps 1 to 4. To see the schedule actually bite, either run it outside 08:30 to 17:00, or edit `SCHOOL_END_MIN` in `config.h` to a couple of minutes ahead of the current clock and rebuild.
+
+Expected once the clock passes the end of the teaching day:
+- header flips to `CLOSED`
+- lights and fan drop to off and stay off, however dark or hot the room gets, and no matter how much motion there is
+- the alarm still fires above 35 C
+- the ThingSpeak status field reads `outside teaching hours`
+
+That asymmetry is the design: comfort loads follow the timetable, safety does not.
+
+### Step 6: remote override
+
+Needs the TalkBack setup from `docs/SETUP.md`. With `TB_ID` left at 0 the device never polls and this step does nothing.
+
+1. Open the TalkBack page in ThingSpeak, or paste the command URL from `SETUP.md` into a browser tab.
+2. Queue `FAN_ON`.
+3. Wait up to 20 seconds for the next poll.
+
+Expected:
+- serial prints `TalkBack: command 'FAN_ON'`
+- fan jumps to 100 % and the OLED shows `FAN:*100%`, the asterisk marking manual control
+- it stays on even in an empty room, even outside teaching hours, because an override outranks both
+- ThingSpeak field 8 reads 10
+- after five minutes serial prints `Override: fan back to automatic` and control returns to the temperature rule
+
+Send `FAN_AUTO` or `ALL_AUTO` to hand control back immediately. `LIGHTS_ON` and `LIGHTS_OFF` behave the same way for the lighting circuit.
 
 ---
 

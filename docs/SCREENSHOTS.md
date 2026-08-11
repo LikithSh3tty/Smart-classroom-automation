@@ -87,7 +87,37 @@ Expected: serial `alarm=1`, buzzer beeping about once a second.
 
 Point worth making in the report: the alarm fires even with `occupied=0`, because an overheating empty room still needs attention, while the fan and lights stay off.
 
-## 8. ThingSpeak dashboard
+## 8. Fan speed ramp
+
+**State**: occupied, temperature swept upward.
+
+1. Hold motion and step the DHT22 temperature through 29 C, 31 C, 34 C, pausing 2 seconds at each.
+2. Capture the terminal showing three or four lines with rising `fan=` percentages, alongside the blue LED.
+
+Expected: `fan=30%`, then roughly `fan=50%`, then `fan=100%`, with the LED visibly brighter at each step. This is the shot that proves proportional control rather than on/off.
+
+## 9. Timetable lockout
+
+**State**: outside teaching hours.
+
+1. Either run after 17:00, or set `SCHOOL_END_MIN` in `config.h` a minute or two ahead of the current clock and rebuild.
+2. Wait for the header to flip to `CLOSED`.
+3. Hold motion, make the room dark and hot.
+4. Capture the OLED and the terminal together.
+
+Expected: `closed` in every serial line, `lights=0 fan=0%` despite dark, hot and occupied, and the alarm still firing if you push past 35 C.
+
+## 10. Remote override
+
+**State**: TalkBack configured.
+
+1. Queue `FAN_ON` from the browser.
+2. Capture the browser tab or TalkBack page showing the queued command.
+3. Within 20 seconds capture the terminal line `TalkBack: command 'FAN_ON'` plus the OLED showing `FAN:*100%`.
+
+Expected: fan at full speed in an empty room, asterisk on the OLED, field 8 reading 10 on ThingSpeak. Two images, the command going out and the device obeying.
+
+## 11. ThingSpeak dashboard
 
 **State**: after running steps 2 through 7, so every field has movement.
 

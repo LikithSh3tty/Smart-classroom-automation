@@ -13,6 +13,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
+#include <HTTPClient.h>
 #include <ThingSpeak.h>
 
 #include "config.h"
@@ -20,7 +21,8 @@
 
 DHT dht(PIN_DHT, DHT22);
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
-WiFiClient net;
+WiFiClient net;      // ThingSpeak channel writes
+WiFiClient tbNet;    // TalkBack command polling, kept separate on purpose
 
 // latest sensor snapshot
 float tempC = NAN;
@@ -50,6 +52,15 @@ int lastUploadStatus = 0;   // 200 once a ThingSpeak write has succeeded
 bool timeValid = false;         // NTP has answered at least once
 bool inSession = true;          // inside teaching hours, fails open when offline
 char clockText[6] = "--:--";
+
+// remote control state. An override beats both the sensors and the timetable,
+// which is the whole point of a manual override, and expires by itself.
+enum Override { OV_AUTO = 0, OV_FORCE_ON = 1, OV_FORCE_OFF = 2 };
+Override fanOverride = OV_AUTO;
+Override lightOverride = OV_AUTO;
+unsigned long fanOverrideMs = 0;
+unsigned long lightOverrideMs = 0;
+unsigned long lastTalkbackMs = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -183,9 +194,81 @@ void loop() {
     drawDisplay();
   }
 
+  if (now - lastTalkbackMs >= TALKBACK_PERIOD_MS) {
+    lastTalkbackMs = now;
+    pollTalkBack();
+  }
+
   if (now - lastUploadMs >= TS_PERIOD_MS) {
     lastUploadMs = now;
     uploadThingSpeak();
+  }
+}
+
+// ------------------------------------------------------------ remote control
+
+// Pops one command off the TalkBack queue. ThingSpeak answers with the command
+// text, or an empty body when the queue is empty.
+void pollTalkBack() {
+  if (TB_ID == 0UL || WiFi.status() != WL_CONNECTED) return;
+
+  char url[160];
+  snprintf(url, sizeof(url),
+           "http://api.thingspeak.com/talkbacks/%lu/commands/execute?api_key=%s",
+           (unsigned long)TB_ID, TB_API_KEY);
+
+  HTTPClient http;
+  if (!http.begin(tbNet, url)) return;
+
+  int code = http.GET();
+  if (code == 200) {
+    String cmd = http.getString();
+    cmd.trim();
+    if (cmd.length()) applyCommand(cmd);
+  } else if (code > 0) {
+    Serial.printf("TalkBack: HTTP %d\r\n", code);
+  }
+  http.end();
+}
+
+void applyCommand(const String &raw) {
+  String cmd = raw;
+  cmd.toUpperCase();
+  Serial.printf("TalkBack: command '%s'\r\n", cmd.c_str());
+
+  if (cmd == "FAN_ON") {
+    fanOverride = OV_FORCE_ON;
+    fanOverrideMs = millis();
+  } else if (cmd == "FAN_OFF") {
+    fanOverride = OV_FORCE_OFF;
+    fanOverrideMs = millis();
+  } else if (cmd == "FAN_AUTO") {
+    fanOverride = OV_AUTO;
+  } else if (cmd == "LIGHTS_ON") {
+    lightOverride = OV_FORCE_ON;
+    lightOverrideMs = millis();
+  } else if (cmd == "LIGHTS_OFF") {
+    lightOverride = OV_FORCE_OFF;
+    lightOverrideMs = millis();
+  } else if (cmd == "LIGHTS_AUTO") {
+    lightOverride = OV_AUTO;
+  } else if (cmd == "ALL_AUTO") {
+    fanOverride = OV_AUTO;
+    lightOverride = OV_AUTO;
+  } else {
+    Serial.println(F("TalkBack: command not recognised, ignoring"));
+  }
+}
+
+// Overrides are deliberately temporary.
+void expireOverrides(unsigned long now) {
+  if (fanOverride != OV_AUTO && now - fanOverrideMs >= OVERRIDE_TIMEOUT_MS) {
+    fanOverride = OV_AUTO;
+    Serial.println(F("Override: fan back to automatic"));
+  }
+  if (lightOverride != OV_AUTO && now - lightOverrideMs >= OVERRIDE_TIMEOUT_MS) {
+    lightOverride = OV_AUTO;
+    Serial.println(F("Override: lights back to automatic"));
   }
 }
 
@@ -208,6 +291,9 @@ void uploadThingSpeak() {
   ThingSpeak.setField(5, (int)lightsOn);
   ThingSpeak.setField(6, fanSpeedPct);
   ThingSpeak.setField(7, (int)alarmOn);
+  // Two digit override code: tens digit is the fan, units digit the lights.
+  // 0 auto, 1 forced on, 2 forced off. So 12 means fan on, lights off.
+  ThingSpeak.setField(8, (int)fanOverride * 10 + (int)lightOverride);
   ThingSpeak.setStatus(inSession ? (occupied ? "class, occupied" : "class, empty")
                                  : "outside teaching hours");
 
@@ -274,6 +360,20 @@ void applyRules(unsigned long now) {
     }
   }
   fanSpeedPct = fanOn ? demandedSpeed(tempC) : 0;
+
+  // Remote commands override everything decided above, then time out.
+  expireOverrides(now);
+
+  if (lightOverride == OV_FORCE_ON)  lightsOn = true;
+  if (lightOverride == OV_FORCE_OFF) lightsOn = false;
+
+  if (fanOverride == OV_FORCE_ON) {
+    fanOn = true;
+    fanSpeedPct = FAN_FORCE_SPEED_PCT;
+  } else if (fanOverride == OV_FORCE_OFF) {
+    fanOn = false;
+    fanSpeedPct = 0;
+  }
 
   // Alarm: temperature emergency, regardless of occupancy.
   alarmOn = !isnan(tempC) && tempC > ALARM_C;
@@ -351,8 +451,10 @@ void drawDisplay() {
   display.drawFastHLine(0, 55, OLED_WIDTH, SSD1306_WHITE);
   display.setCursor(0, 57);
   display.print(F("LGT:"));
-  display.print(lightsOn ? F("ON ") : F("OFF"));
+  display.print(lightsOn ? F("ON") : F("OFF"));
+  if (lightOverride != OV_AUTO) display.print('*');
   display.print(F(" FAN:"));
+  if (fanOverride != OV_AUTO) display.print('*');
   if (fanSpeedPct > 0) {
     display.print(fanSpeedPct);
     display.print('%');

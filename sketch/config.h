@@ -65,6 +65,14 @@
 #define SENSOR_PERIOD_MS    2000UL   // DHT22 needs >= 2 s between reads
 #define DISPLAY_PERIOD_MS    500UL
 #define BEEP_PERIOD_MS       600UL   // alarm on/off half cycle
+#define TALKBACK_PERIOD_MS 20000UL   // how often the command queue is polled
+
+// A remote override reverts to automatic control after this long, so a
+// forgotten "fan on" command cannot run the fan all night.
+#define OVERRIDE_TIMEOUT_MS 300000UL  // 5 minutes
+
+// Speed used when the fan is forced on from the cloud.
+#define FAN_FORCE_SPEED_PCT   100
 
 // ------------------------------------------------------- ADC calibration
 // Raw ADC counts measured at each end of the Wokwi illumination slider.

@@ -58,8 +58,9 @@ Two ways to run this: the Wokwi website (no install) or the Wokwi VS Code extens
    | 3 | Light % |
    | 4 | Occupied |
    | 5 | Lights |
-   | 6 | Fan |
+   | 6 | Fan speed % |
    | 7 | Alarm |
+   | 8 | Override code |
 
 3. Save, then open the API Keys tab and copy the Channel ID and the Write API Key.
 4. Put both into `secrets.h`:
@@ -70,6 +71,50 @@ Two ways to run this: the Wokwi website (no install) or the Wokwi VS Code extens
 5. Restart the simulation. The serial monitor prints `ThingSpeak: update accepted` every 15 seconds and the OLED header shows `TS`.
 
 The free tier rejects updates faster than one per 15 seconds, which is why `TS_PERIOD_MS` is 15000. Lower it only on a paid plan.
+
+## TalkBack remote control
+
+TalkBack is a command queue hosted by ThingSpeak. The device pops one command from it every 20 seconds, which is how the fan and lights can be driven from a browser.
+
+1. In ThingSpeak open **Apps**, then **TalkBack**, then **New TalkBack**.
+2. Name it `Classroom control` and save. Leave the command list empty for now.
+3. Copy the **TalkBack ID** and the **API Key** shown at the top.
+4. Put them into `sketch/secrets.h`:
+   ```c
+   #define TB_ID          54321UL
+   #define TB_API_KEY     "XXXXXXXXXXXXXXXX"
+   ```
+5. Rebuild and restart the simulation.
+
+To send a command, either use **Add TalkBack Command** on the TalkBack page, or open this URL in any browser:
+
+```
+https://api.thingspeak.com/talkbacks/<TB_ID>/commands.json?api_key=<TB_API_KEY>&command_string=FAN_ON
+```
+
+Accepted commands:
+
+| Command | Effect |
+|---|---|
+| `FAN_ON` | fan forced to full speed |
+| `FAN_OFF` | fan forced off |
+| `FAN_AUTO` | fan returns to temperature control |
+| `LIGHTS_ON` | lights forced on |
+| `LIGHTS_OFF` | lights forced off |
+| `LIGHTS_AUTO` | lights return to sensor control |
+| `ALL_AUTO` | clears both overrides |
+
+Overrides beat the sensors and the timetable, and revert on their own after `OVERRIDE_TIMEOUT_MS`, five minutes by default. Leaving `TB_ID` at 0 disables the whole feature and the device never calls out.
+
+## Timetable
+
+`config.h` holds the schedule. Defaults are 08:30 to 17:00, Monday to Friday, on IST (`TZ_OFFSET_SEC` 19800).
+
+- `TZ_OFFSET_SEC` seconds east of UTC, so 0 for UTC, 3600 for CET
+- `SCHOOL_START_MIN` and `SCHOOL_END_MIN` as minutes past midnight
+- `SCHOOL_DAY_MASK` one bit per weekday, bit 0 is Sunday, `0x3E` is Monday to Friday, `0x7F` is every day
+
+If NTP never answers, the schedule fails open and automation runs as if class were in session. An unsynced clock should not leave a room dark.
 
 ## Tuning
 

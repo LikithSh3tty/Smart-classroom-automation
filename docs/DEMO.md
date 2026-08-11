@@ -26,13 +26,22 @@ If the room is empty the lights stay off no matter how dark it gets, which is th
 
 Drag the DHT22 temperature slider up past 28 C, keeping motion alive.
 
-Expected: the relay clicks, the blue FAN LED turns on, OLED shows `FAN:ON`. Drop below 26.5 C and it releases.
+Expected: the relay clicks, the blue FAN LED lights dimly and the OLED shows `FAN:30%`. Keep raising the temperature and both the brightness and the percentage climb, hitting 100 % at 34 C. Drop below 26.5 C and it releases.
 
 ## 4. Trigger the alarm
 
 Push the temperature past 35 C.
 
 Expected: the buzzer beeps at roughly 1 Hz and a `!` appears on the OLED status row. Field 7 goes to 1. Cool the room back down and it stops.
+
+## 5. Timetable and remote control
+
+Two rules that do not come from the sensors at all:
+
+- The OLED header shows the clock and `CLASS` or `CLOSED`, from NTP. Outside teaching hours the lights and fan are held off however dark, hot or occupied the room is. The alarm still fires.
+- A `FAN_ON` command queued on ThingSpeak TalkBack overrides both the sensors and the timetable within 20 seconds, marks itself with an asterisk on the OLED, and expires back to automatic after five minutes.
+
+Full walkthrough for both in [RUNBOOK.md](RUNBOOK.md).
 
 ## What to capture for a report
 
