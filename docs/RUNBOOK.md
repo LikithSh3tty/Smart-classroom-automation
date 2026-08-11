@@ -108,7 +108,7 @@ Open your ThingSpeak channel's **Private View** in a second browser tab. The fir
 
 ### Step 1: detect motion
 
-Click the **PIR sensor** body on the canvas. Wokwi fires a motion pulse for a couple of seconds.
+Click the **PIR sensor** on the canvas. A panel appears above the diagram with a **Simulate motion** button. Press it to fire a motion pulse.
 
 Expected:
 - OLED `Room` flips to `OCCUPIED`
@@ -116,7 +116,7 @@ Expected:
 - 10 seconds after the last click it falls back to `EMPTY`
 - ThingSpeak field 4 steps to 1
 
-Keep clicking the PIR every few seconds during the next steps to hold the room occupied. This is deliberate: the automation only acts on an occupied room.
+Keep pressing **Simulate motion** every few seconds during the next steps to hold the room occupied. This is deliberate: the automation only acts on an occupied room.
 
 ### Step 2: change light level
 
@@ -172,6 +172,7 @@ The alarm ignores occupancy on purpose, an overheating empty room still needs to
 | `ThingSpeak: write failed, HTTP -301` | not connected | check the serial log for a successful WiFi join, restart the simulation |
 | `ThingSpeak: write failed, HTTP 400` | wrong channel ID or key | recopy both from the API Keys tab |
 | Uploads accepted but charts empty | looking at Public View | switch to Private View, or make fields public under Sharing |
-| Fan LED on when it should be off | relay module treated as active low | invert the two `digitalWrite(PIN_RELAY, ...)` calls in `sketch.ino` |
+| `fan=1` in serial but the FAN LED stays dark | relay wired or modelled active low | invert the two `digitalWrite(PIN_RELAY, ...)` calls in `sketch.ino`. Not needed on Wokwi, the module there is active high and verified working |
+| `fan=0` while the room is hot | room is empty | the fan rule requires occupancy, press **Simulate motion** |
 | Lights never switch on | light never reads below 35 | recalibrate `LDR_RAW_DARK` and `LDR_RAW_BRIGHT` |
 | Nothing reacts to clicks | simulation not running | press play, interactive parts are inert while stopped |

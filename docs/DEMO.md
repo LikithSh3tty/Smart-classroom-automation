@@ -10,7 +10,7 @@ Wait about 15 seconds so the first ThingSpeak point lands.
 
 ## 1. Detect motion
 
-Click the PIR sensor in the diagram to fire a motion pulse.
+Click the PIR sensor in the diagram, then press **Simulate motion** in the panel that appears.
 
 Expected: OLED flips to `OCCUPIED` and stays there for 10 seconds after the last pulse. Field 4 on ThingSpeak goes to 1.
 
