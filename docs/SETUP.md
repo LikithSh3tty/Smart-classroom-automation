@@ -5,8 +5,8 @@ Two ways to run this: the Wokwi website (no install) or the Wokwi VS Code extens
 ## Option A: Wokwi website
 
 1. Open https://wokwi.com/projects/new/esp32.
-2. Replace the editor contents of `sketch.ino` with this repo's `sketch.ino`.
-3. Add three more files with the `+` tab button and paste in `config.h`, `secrets.h` and `diagram.json`.
+2. Replace the editor contents of `sketch.ino` with this repo's `sketch/sketch.ino`.
+3. Add three more files with the `+` tab button and paste in `sketch/config.h`, `sketch/secrets.h` and `diagram.json`.
 4. Open the Library Manager tab and add each entry from `libraries.txt`:
    - DHT sensor library
    - Adafruit Unified Sensor
@@ -33,7 +33,16 @@ Two ways to run this: the Wokwi website (no install) or the Wokwi VS Code extens
    ```
 3. Build into the path `wokwi.toml` expects:
    ```powershell
-   arduino-cli compile --fqbn esp32:esp32:esp32 --output-dir build .
+   arduino-cli compile --fqbn esp32:esp32:esp32 --output-dir build sketch
+   ```
+   The firmware lives in `sketch/` because arduino-cli requires the sketch folder
+   and the main `.ino` file to share a name. Wokwi reads `diagram.json` and
+   `wokwi.toml` from the repo root, so the nesting does not affect it.
+
+   Verified output on ESP32 core 3.x:
+   ```
+   Sketch uses 940864 bytes (71%) of program storage space.
+   Global variables use 48760 bytes (14%) of dynamic memory.
    ```
 4. Run the Wokwi extension command `Wokwi: Start Simulator`. It gets a free licence key on first use.
 

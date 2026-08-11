@@ -27,9 +27,9 @@ Runs fully in simulation on [Wokwi](https://wokwi.com), no physical hardware req
 ## Repository layout
 
 ```
-sketch.ino       firmware
-config.h         pin map, thresholds and timing
-secrets.h        WiFi credentials and ThingSpeak channel
+sketch/sketch.ino  firmware
+sketch/config.h    pin map, thresholds and timing
+sketch/secrets.h   WiFi credentials and ThingSpeak channel
 diagram.json     Wokwi wiring
 libraries.txt    Wokwi library dependencies
 wokwi.toml       Wokwi VS Code extension config
