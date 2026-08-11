@@ -1,0 +1,8 @@
+build/
+.pio/
+.vscode/
+*.bin
+*.elf
+*.hex
+__pycache__/
+.DS_Store
