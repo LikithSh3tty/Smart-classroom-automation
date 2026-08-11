@@ -25,6 +25,7 @@ WiFiClient net;
 float tempC = NAN;
 float humidity = NAN;
 float lightPct = 0.0f;
+int ldrRaw = 0;              // raw ADC counts, logged so the map can be calibrated
 bool motion = false;
 bool occupied = false;
 
@@ -176,8 +177,8 @@ void readEnvironment() {
     Serial.println(F("DHT22 read failed, keeping last good values"));
   }
 
-  int raw = analogRead(PIN_LDR);
-  lightPct = 100.0f * (float)(raw - LDR_RAW_DARK) /
+  ldrRaw = analogRead(PIN_LDR);
+  lightPct = 100.0f * (float)(ldrRaw - LDR_RAW_DARK) /
              (float)(LDR_RAW_BRIGHT - LDR_RAW_DARK);
   lightPct = constrain(lightPct, 0.0f, 100.0f);
 }
@@ -276,8 +277,9 @@ void drawDisplay() {
 }
 
 void logSerial() {
-  Serial.printf("T=%.1fC H=%.0f%% L=%.0f%% motion=%d occupied=%d "
-                "lights=%d fan=%d alarm=%d\n",
-                tempC, humidity, lightPct, motion, occupied,
+  // \r\n keeps the line aligned in serial views that do not translate \n
+  Serial.printf("T=%.1fC H=%.0f%% L=%.0f%% (adc %4d) motion=%d occupied=%d "
+                "lights=%d fan=%d alarm=%d\r\n",
+                tempC, humidity, lightPct, ldrRaw, motion, occupied,
                 lightsOn, fanOn, alarmOn);
 }
