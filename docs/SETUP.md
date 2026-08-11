@@ -86,10 +86,19 @@ TalkBack is a command queue hosted by ThingSpeak. The device pops one command fr
    ```
 5. Rebuild and restart the simulation.
 
-To send a command, either use **Add TalkBack Command** on the TalkBack page, or open this URL in any browser:
+To queue a command, open the TalkBack page, scroll to **Add a New Command**, type the command string, set **Position** to 1 and click **Add Command**.
+
+From a terminal it is a POST, not a GET:
 
 ```
-https://api.thingspeak.com/talkbacks/<TB_ID>/commands.json?api_key=<TB_API_KEY>&command_string=FAN_ON
+curl -X POST -d "api_key=<TB_API_KEY>&command_string=FAN_ON" \
+     https://api.thingspeak.com/talkbacks/<TB_ID>/commands.json
+```
+
+Pasting that URL into a browser address bar does **not** queue anything. A browser sends a GET, which lists the queue instead, and an empty queue answers `[]`. Useful for checking what is pending:
+
+```
+https://api.thingspeak.com/talkbacks/<TB_ID>/commands.json?api_key=<TB_API_KEY>
 ```
 
 Accepted commands:

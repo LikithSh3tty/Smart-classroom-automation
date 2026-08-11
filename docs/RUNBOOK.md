@@ -178,8 +178,8 @@ That asymmetry is the design: comfort loads follow the timetable, safety does no
 
 Needs the TalkBack setup from `docs/SETUP.md`. With `TB_ID` left at 0 the device never polls and this step does nothing.
 
-1. Open the TalkBack page in ThingSpeak, or paste the command URL from `SETUP.md` into a browser tab.
-2. Queue `FAN_ON`.
+1. Open the TalkBack page in ThingSpeak, scroll to **Add a New Command**.
+2. Command string `FAN_ON`, position 1, click **Add Command**. Queuing over the API is a POST, see `SETUP.md`, a browser URL only lists the queue.
 3. Wait up to 20 seconds for the next poll.
 
 Expected:
