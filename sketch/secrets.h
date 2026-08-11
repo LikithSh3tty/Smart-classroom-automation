@@ -7,9 +7,8 @@
 #define WIFI_CHANNEL   6
 
 // ThingSpeak channel that receives the telemetry.
-// Replace both values with your own channel, then re-run the simulation.
-#define TS_CHANNEL_ID    0UL
-#define TS_WRITE_API_KEY "YOUR_THINGSPEAK_WRITE_API_KEY"
+#define TS_CHANNEL_ID    3451260UL
+#define TS_WRITE_API_KEY "9ZPIO143AL8TEDKO"
 
 // ThingSpeak free tier accepts one update every 15 seconds.
 #define TS_PERIOD_MS   15000UL
