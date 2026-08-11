@@ -42,6 +42,25 @@
 // Room counts as empty this long after the last motion pulse.
 #define VACANCY_MS         10000UL
 
+// ---------------------------------------------------------- class timetable
+// Wall clock time comes from NTP. Offset is seconds east of UTC:
+// 19800 is IST (UTC+5:30). Use 0 for UTC, 3600 for CET, and so on.
+#define TZ_OFFSET_SEC      19800
+#define TZ_DST_SEC             0
+#define NTP_SERVER_A       "pool.ntp.org"
+#define NTP_SERVER_B       "time.nist.gov"
+
+// Teaching hours as minutes past midnight.
+#define SCHOOL_START_MIN   (8 * 60 + 30)    // 08:30
+#define SCHOOL_END_MIN     (17 * 60)        // 17:00
+
+// One bit per weekday, bit 0 is Sunday. 0x3E is Monday through Friday.
+// Add Saturday with 0x7E, make it every day with 0x7F.
+#define SCHOOL_DAY_MASK    0x3E
+
+// Outside teaching hours lights and fan are held off no matter what the
+// sensors say. The over temperature alarm stays armed around the clock.
+
 // ------------------------------------------------------------- timing
 #define SENSOR_PERIOD_MS    2000UL   // DHT22 needs >= 2 s between reads
 #define DISPLAY_PERIOD_MS    500UL

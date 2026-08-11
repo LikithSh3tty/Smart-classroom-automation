@@ -9,6 +9,7 @@
 
 #include <Wire.h>
 #include <WiFi.h>
+#include <time.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
@@ -44,6 +45,11 @@ unsigned long lastUploadMs = 0;
 unsigned long lastWifiTryMs = 0;
 
 int lastUploadStatus = 0;   // 200 once a ThingSpeak write has succeeded
+
+// schedule state
+bool timeValid = false;         // NTP has answered at least once
+bool inSession = true;          // inside teaching hours, fails open when offline
+char clockText[6] = "--:--";
 
 void setup() {
   Serial.begin(115200);
@@ -84,6 +90,7 @@ void setup() {
   }
 
   connectWifi();
+  syncClock();
   ThingSpeak.begin(net);
 
   lastMotionMs = millis();
@@ -111,6 +118,51 @@ void connectWifi() {
   lastWifiTryMs = millis();
 }
 
+// Asks NTP for the wall clock. Called once after the network is up; the
+// schedule keeps working off the ESP32's own clock afterwards.
+void syncClock() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("Clock: offline, schedule disabled and automation left on"));
+    return;
+  }
+
+  configTime(TZ_OFFSET_SEC, TZ_DST_SEC, NTP_SERVER_A, NTP_SERVER_B);
+
+  struct tm t;
+  if (getLocalTime(&t, 8000)) {
+    timeValid = true;
+    Serial.printf("Clock: %04d-%02d-%02d %02d:%02d:%02d local\r\n",
+                  t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+                  t.tm_hour, t.tm_min, t.tm_sec);
+  } else {
+    Serial.println(F("Clock: NTP timeout, schedule disabled"));
+  }
+}
+
+// Decides whether the room is inside teaching hours. With no valid clock this
+// deliberately fails open, an unsynced device should still run the classroom.
+void updateSchedule() {
+  if (!timeValid) {
+    inSession = true;
+    return;
+  }
+
+  struct tm t;
+  if (!getLocalTime(&t, 50)) {
+    inSession = true;
+    return;
+  }
+
+  snprintf(clockText, sizeof(clockText), "%02d:%02d", t.tm_hour, t.tm_min);
+
+  int minutes = t.tm_hour * 60 + t.tm_min;
+  bool teachingDay = (SCHOOL_DAY_MASK >> t.tm_wday) & 1;
+
+  inSession = teachingDay &&
+              minutes >= SCHOOL_START_MIN &&
+              minutes < SCHOOL_END_MIN;
+}
+
 void loop() {
   unsigned long now = millis();
 
@@ -118,6 +170,7 @@ void loop() {
 
   if (now - lastSensorMs >= SENSOR_PERIOD_MS) {
     lastSensorMs = now;
+    updateSchedule();
     readEnvironment();
     applyRules(now);
     logSerial();
@@ -155,7 +208,8 @@ void uploadThingSpeak() {
   ThingSpeak.setField(5, (int)lightsOn);
   ThingSpeak.setField(6, fanSpeedPct);
   ThingSpeak.setField(7, (int)alarmOn);
-  ThingSpeak.setStatus(occupied ? "occupied" : "empty");
+  ThingSpeak.setStatus(inSession ? (occupied ? "class, occupied" : "class, empty")
+                                 : "outside teaching hours");
 
   lastUploadStatus = ThingSpeak.writeFields(TS_CHANNEL_ID, TS_WRITE_API_KEY);
   if (lastUploadStatus == 200) {
@@ -198,7 +252,9 @@ void readEnvironment() {
 void applyRules(unsigned long now) {
   // Lights: only while the room is occupied, and only when it is dark.
   // Hysteresis keeps the LED from chattering around the threshold.
-  if (!occupied) {
+  if (!inSession) {
+    lightsOn = false;
+  } else if (!occupied) {
     lightsOn = false;
   } else if (!lightsOn && lightPct < DARK_PCT) {
     lightsOn = true;
@@ -208,7 +264,7 @@ void applyRules(unsigned long now) {
 
   // Fan: occupied and warm. Speed rises with how far the room has overshot
   // the setpoint instead of slamming between off and full.
-  if (!occupied) {
+  if (!inSession || !occupied) {
     fanOn = false;
   } else if (!isnan(tempC)) {
     if (!fanOn && tempC > FAN_ON_C) {
@@ -263,7 +319,8 @@ void drawDisplay() {
 
   display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print(F("SMART CLASSROOM"));
+  display.print(clockText);
+  display.print(inSession ? F(" CLASS") : F(" CLOSED"));
   display.setCursor(104, 0);
   if (WiFi.status() != WL_CONNECTED) {
     display.print(F("OFF"));
@@ -309,8 +366,9 @@ void drawDisplay() {
 
 void logSerial() {
   // \r\n keeps the line aligned in serial views that do not translate \n
-  Serial.printf("T=%.1fC H=%.0f%% L=%.0f%% (adc %4d) motion=%d occupied=%d "
-                "lights=%d fan=%d%% alarm=%d\r\n",
+  Serial.printf("%s %s T=%.1fC H=%.0f%% L=%.0f%% (adc %4d) motion=%d "
+                "occupied=%d lights=%d fan=%d%% alarm=%d\r\n",
+                clockText, inSession ? "class " : "closed",
                 tempC, humidity, lightPct, ldrRaw, motion, occupied,
                 lightsOn, fanSpeedPct, alarmOn);
 }
