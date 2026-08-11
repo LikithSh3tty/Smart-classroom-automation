@@ -51,12 +51,15 @@
 #define NTP_SERVER_B       "time.nist.gov"
 
 // Teaching hours as minutes past midnight.
-#define SCHOOL_START_MIN   (8 * 60 + 30)    // 08:30
-#define SCHOOL_END_MIN     (17 * 60)        // 17:00
+// Widened to 06:00-23:00 every day so the demo can be run and photographed
+// outside normal teaching hours. Realistic values are 08:30 to 17:00 with
+// SCHOOL_DAY_MASK 0x3E, restore those once the screenshots are captured.
+#define SCHOOL_START_MIN   (6 * 60)         // 06:00
+#define SCHOOL_END_MIN     (23 * 60)        // 23:00
 
 // One bit per weekday, bit 0 is Sunday. 0x3E is Monday through Friday.
 // Add Saturday with 0x7E, make it every day with 0x7F.
-#define SCHOOL_DAY_MASK    0x3E
+#define SCHOOL_DAY_MASK    0x7F
 
 // Outside teaching hours lights and fan are held off no matter what the
 // sensors say. The over temperature alarm stays armed around the clock.
