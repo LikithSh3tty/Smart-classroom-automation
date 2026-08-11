@@ -21,6 +21,8 @@ remote override            a cloud command beats both, then expires
 
 Each layer overrules the one above it. The over temperature alarm sits outside that stack entirely and answers to temperature alone, because an overheating empty room at midnight still needs to raise a flag.
 
+**The live channel is public: <https://thingspeak.mathworks.com/channels/3451260>.** Every chart there was written by the simulated ESP32 over the Wokwi network gateway, not by a script posting numbers.
+
 ![The circuit in Wokwi: ESP32 with OLED, DHT22, photoresistor, PIR, relay, two LEDs and a buzzer](docs/screenshots/01-circuit-diagram.png)
 
 ## What it does
