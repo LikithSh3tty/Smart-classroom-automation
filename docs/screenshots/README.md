@@ -16,10 +16,14 @@ Numbering follows [../SCREENSHOTS.md](../SCREENSHOTS.md). All captured from the 
 | `09c-timetable-lockout-sweep.png` | Temperature swept 29.9 to 39.4 C with `fan=0%` at every step, because the room is closed. |
 | `09d-timetable-lockout-occupied.png` | Lockout at 24 C, dark and occupied, everything off. |
 | `10-remote-override-fan-on.png` | `TalkBack: command 'FAN_ON'` followed by `closed ... occupied=0 ... fan=100%`. The remote override outranking both the sensors and the timetable. |
-| `11a-thingspeak-fields-1-4.png` | Cloud dashboard, temperature, humidity, light and occupancy. |
-| `11b-thingspeak-fields-5-8.png` | Cloud dashboard, lights, fan speed, alarm and override code. Field 6 shows the 100 % override block, field 8 the matching code 10. |
+| `11a-thingspeak-fields-1-4.png` | Cloud dashboard, temperature, humidity, light and occupancy. The temperature ramp 25 to 31 to 47 C, the light sweep, and the occupancy pulses all line up in time. |
+| `11b-thingspeak-fields-5-6.png` | Lights and fan speed. Field 6 is the important one: a **staircase** at 100, then 50, then 100. A bang-bang controller would draw a square wave, the intermediate step is the proportional control. |
+| `11c-thingspeak-fields-7-8.png` | Alarm and override code. Field 8 shows code 10, fan forced on, dropping back to 0 when the override expired. |
+
+## Reading the charts together
+
+The 20:15 block in field 6 at 100 % with field 8 at 10 is the remote override. The 20:47 activity at 50 then 100 with field 8 at 0 is the temperature rule driving the fan on its own. Same actuator, two different sources of authority, distinguishable from the cloud data alone.
 
 ## Worth retaking
 
-- `11a` and `11b` were captured at 20:25, before the sensor driven run at 20:44 to 20:49. Reload the ThingSpeak Private View now and the charts will also show the lights turning on, the fan ramp through 50 % and 100 %, and the alarm. Better evidence than the override block alone.
-- `03-baseline-oled.png` shows `CLOSED` in the header. A `CLASS` version would match the other in-session shots, though the current one doubles as evidence that the schedule was active.
+- `03-baseline-oled.png` shows `CLOSED` in the header, since it predates the widened schedule. A `CLASS` version would match the other in-session shots, though the current one doubles as evidence that the schedule was active.
